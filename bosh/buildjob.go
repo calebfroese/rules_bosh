@@ -9,7 +9,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/xoebus/rules_bosh/internal/buildtar"
+	"github.com/xoebus/rules_bosh/bosh/internal/buildtar"
 )
 
 func main() {
@@ -25,6 +25,7 @@ func run(args []string) error {
 	flags := flag.NewFlagSet("buildjob", flag.ExitOnError)
 	manifest := flags.String("manifest", "", "path to the job spec file")
 	monit := flags.String("monit", "", "path to the job monit file")
+	output := flags.String("output", "", "path to place output")
 	flags.Var(&templates, "template", "repeated template files for the job")
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -35,8 +36,13 @@ func run(args []string) error {
 	if *monit == "" {
 		return errors.New("-monit must be specified")
 	}
+	out, err := os.Create(*output)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
 
-	gw := gzip.NewWriter(os.Stdout)
+	gw := gzip.NewWriter(out)
 	tb := buildtar.NewBuilder(gw)
 	if err := tb.AddFile(*manifest, buildtar.Hermetic(), buildtar.Prefix("./"), buildtar.Rename("job.MF"), buildtar.Mode(os.FileMode(0644))); err != nil {
 		return err

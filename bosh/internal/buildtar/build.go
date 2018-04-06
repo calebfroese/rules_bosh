@@ -27,7 +27,7 @@ func (b *Builder) Close() error {
 }
 
 func (b *Builder) AddFile(path string, opts ...AddOption) error {
-	fi, err := os.Lstat(path)
+	fi, err := os.Stat(path)
 	if err != nil {
 		return err
 	}

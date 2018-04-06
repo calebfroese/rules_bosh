@@ -1,0 +1,30 @@
+# gazelle:ignore
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_binary(
+    name = "buildjob",
+    srcs = [
+        "buildjob.go",
+    ],
+    deps = ["//bosh/internal/buildtar:go_default_library"],
+    visibility = ["//visibility:public"],
+)
+
+go_binary(
+    name = "buildpkg",
+    srcs = [
+        "buildpkg.go",
+    ],
+    deps = ["//bosh/internal/buildtar:go_default_library"],
+    visibility = ["//visibility:public"],
+)
+
+go_binary(
+    name = "buildrel",
+    srcs = [
+        "buildrel.go",
+    ],
+    deps = ["//bosh/internal/buildtar:go_default_library"],
+    visibility = ["//visibility:public"],
+)
+

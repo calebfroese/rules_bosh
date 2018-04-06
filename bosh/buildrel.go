@@ -15,7 +15,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/xoebus/rules_bosh/internal/buildtar"
+	"github.com/xoebus/rules_bosh/bosh/internal/buildtar"
 )
 
 func main() {
@@ -31,6 +31,7 @@ func run(args []string) error {
 	packages := multiFlag{}
 	flags := flag.NewFlagSet("buildrel", flag.ExitOnError)
 	name := flags.String("name", "", "name of the release")
+	output := flags.String("output", "", "path to place the release")
 	stemcellDistro := flags.String("stemcellDistro", "", "distro of the stemcell")
 	stemcellVersion := flags.String("stemcellVersion", "", "version of the stemcell")
 	flags.Var(&jobs, "job", "repeated jobs for the release")
@@ -48,7 +49,13 @@ func run(args []string) error {
 		return errors.New("-stemcellVersion must be specified")
 	}
 
-	gw, err := gzip.NewWriterLevel(os.Stdout, gzip.BestSpeed)
+	out, err := os.Create(*output)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	gw, err := gzip.NewWriterLevel(out, gzip.BestSpeed)
 	if err != nil {
 		return err
 	}

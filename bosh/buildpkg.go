@@ -8,7 +8,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/xoebus/rules_bosh/internal/buildtar"
+	"github.com/xoebus/rules_bosh/bosh/internal/buildtar"
 )
 
 func main() {
@@ -22,12 +22,19 @@ func main() {
 func run(args []string) error {
 	files := multiFlag{}
 	flags := flag.NewFlagSet("buildpkg", flag.ExitOnError)
+	output := flags.String("output", "", "path to place output")
 	flags.Var(&files, "file", "repeated files to add to the package")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
 
-	gw := gzip.NewWriter(os.Stdout)
+	out, err := os.Create(*output)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	gw := gzip.NewWriter(out)
 	tb := buildtar.NewBuilder(gw)
 
 	sort.Strings(files)
