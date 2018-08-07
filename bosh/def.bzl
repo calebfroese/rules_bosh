@@ -22,6 +22,12 @@ def _bosh_release_impl(ctx):
         progress_message="Building %s BOSH release" % ctx.label.name,
         executable=ctx.executable._builder,
     )
+    return struct(
+        runfiles = ctx.runfiles(
+            files = outputs,
+        ),
+    )
+
 
 bosh_release = rule(
     _bosh_release_impl,
