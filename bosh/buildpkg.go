@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"sort"
@@ -19,10 +20,13 @@ func main() {
 	}
 }
 
+var tarOpts = []buildtar.AddOption{buildtar.Hermetic(), buildtar.Prefix("./"), buildtar.Mode(os.FileMode(0755))}
+
 func run(args []string) error {
 	files := multiFlag{}
 	flags := flag.NewFlagSet("buildpkg", flag.ExitOnError)
 	output := flags.String("output", "", "path to place output")
+	uncompiled := flags.Bool("uncompiled", false, "make an uncompiled package")
 	flags.Var(&files, "file", "repeated files to add to the package")
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -37,9 +41,23 @@ func run(args []string) error {
 	gw := gzip.NewWriter(out)
 	tb := buildtar.NewBuilder(gw)
 
+	if *uncompiled {
+		f, err := ioutil.TempFile("", "packaging")
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		if _, err := f.Write([]byte(packagingScript)); err != nil {
+			return err
+		}
+		if err := tb.AddFile(f.Name(), append(tarOpts, buildtar.Rename("packaging"))...); err != nil {
+			return err
+		}
+	}
+
 	sort.Strings(files)
 	for _, file := range files {
-		if err := tb.AddFile(file, buildtar.Hermetic(), buildtar.Prefix("./"), buildtar.Mode(os.FileMode(0755))); err != nil {
+		if err := tb.AddFile(file, tarOpts...); err != nil {
 			return err
 		}
 	}
@@ -67,3 +85,12 @@ func (m *multiFlag) String() string {
 	}
 	return fmt.Sprint(*m)
 }
+
+var packagingScript = `#!/bin/bash
+
+set -e
+set -u
+
+cp -r ${BOSH_COMPILE_TARGET}/* ${BOSH_INSTALL_TARGET}
+rm ${BOSH_INSTALL_TARGET}/packaging
+`

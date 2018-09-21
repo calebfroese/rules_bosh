@@ -34,6 +34,7 @@ func run(args []string) error {
 	output := flags.String("output", "", "path to place the release")
 	stemcellDistro := flags.String("stemcellDistro", "", "distro of the stemcell")
 	stemcellVersion := flags.String("stemcellVersion", "", "version of the stemcell")
+	uncompiled := flags.Bool("uncompiled", false, "make an uncompiled release")
 	flags.Var(&jobs, "job", "repeated jobs for the release")
 	flags.Var(&packages, "package", "repeated packages for the release")
 	if err := flags.Parse(args); err != nil {
@@ -42,10 +43,10 @@ func run(args []string) error {
 	if *name == "" {
 		return errors.New("-name must be specified")
 	}
-	if *stemcellDistro == "" {
+	if *stemcellDistro == "" && !*uncompiled {
 		return errors.New("-stemcellDistro must be specified")
 	}
-	if *stemcellVersion == "" {
+	if *stemcellVersion == "" && !*uncompiled {
 		return errors.New("-stemcellVersion must be specified")
 	}
 
@@ -86,8 +87,12 @@ func run(args []string) error {
 		})
 	}
 	sort.Strings(packages)
+	prefix := "./compiled_packages/"
+	if *uncompiled {
+		prefix = "./packages/"
+	}
 	for _, pkg := range packages {
-		if err := tb.AddFile(pkg, buildtar.Hermetic(), buildtar.Prefix("./compiled_packages/"), buildtar.Mode(os.FileMode(0644))); err != nil {
+		if err := tb.AddFile(pkg, buildtar.Hermetic(), buildtar.Prefix(prefix), buildtar.Mode(os.FileMode(0644))); err != nil {
 			return err
 		}
 		pkgName := strings.TrimSuffix(filepath.Base(pkg), filepath.Ext(pkg))
@@ -95,12 +100,17 @@ func run(args []string) error {
 		if err != nil {
 			return err
 		}
-		manifest.Packages = append(manifest.Packages, Package{
+		manifestPackage := Package{
 			Name:        pkgName,
 			Fingerprint: sha,
 			Sha1:        fmt.Sprintf("sha256:%s", sha),
-			Stemcell:    fmt.Sprintf("%s/%s", *stemcellDistro, *stemcellVersion),
-		})
+		}
+		if !*uncompiled {
+			manifestPackage.Stemcell = fmt.Sprintf("%s/%s", *stemcellDistro, *stemcellVersion)
+			manifest.CompiledPackages = append(manifest.Packages, manifestPackage)
+		} else {
+			manifest.Packages = append(manifest.Packages, manifestPackage)
+		}
 	}
 
 	f, err := ioutil.TempFile("", "releasemanifest")
@@ -147,7 +157,8 @@ type Manifest struct {
 	UncommittedChanges bool      `json:"uncommitted_changes"`
 	CommitHash         string    `json:"commit_hash"`
 	Jobs               []Job     `json:"jobs"`
-	Packages           []Package `json:"compiled_packages"`
+	Packages           []Package `json:"packages,omitempty"`
+	CompiledPackages   []Package `json:"compiled_packages,omitempty"`
 }
 
 type Job struct {

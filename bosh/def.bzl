@@ -28,7 +28,6 @@ def _bosh_release_impl(ctx):
         ),
     )
 
-
 bosh_release = rule(
     _bosh_release_impl,
     attrs = {
@@ -42,6 +41,56 @@ bosh_release = rule(
             mandatory = True,
         ),
         "stemcell_version": attr.string(
+            mandatory = True,
+        ),
+        "_builder": attr.label(
+            default = Label("//bosh:buildrel"),
+            allow_single_file = True,
+            executable = True,
+            cfg = "host",
+        )
+    },
+    outputs = {
+        "out": "%{name}.tgz",
+    },
+)
+
+def _bosh_uncompiled_release_impl(ctx):
+    inputs = [f for f in ctx.files.packages] + [f for f in ctx.files.jobs]
+    outputs = [ctx.outputs.out]
+
+    args = ctx.actions.args()
+    args.add(["-output", ctx.outputs.out.path])
+    args.add(["-name", ctx.label.name])
+    args.add("-uncompiled")
+    for package in ctx.files.packages:
+        args.add("-package")
+        args.add(package.path)
+    for job in ctx.files.jobs:
+        args.add("-job")
+        args.add(job.path)
+
+    ctx.actions.run(
+        inputs=inputs,
+        outputs=outputs,
+        arguments=[args],
+        mnemonic="BoshUncompiledRelease",
+        progress_message="Building %s BOSH release (uncompiled)" % ctx.label.name,
+        executable=ctx.executable._builder,
+    )
+    return struct(
+        runfiles = ctx.runfiles(
+            files = outputs,
+        ),
+    )
+
+bosh_uncompiled_release = rule(
+    _bosh_uncompiled_release_impl,
+    attrs = {
+        "jobs": attr.label_list(
+            mandatory = True,
+        ),
+        "packages": attr.label_list(
             mandatory = True,
         ),
         "_builder": attr.label(
@@ -124,6 +173,45 @@ def _bosh_package_impl(ctx):
 
 bosh_package = rule(
     _bosh_package_impl,
+    attrs = {
+        "srcs": attr.label_list(
+            allow_files = True,
+            mandatory = True,
+        ),
+        "_builder": attr.label(
+            default = Label("//bosh:buildpkg"),
+            allow_single_file = True,
+            executable = True,
+            cfg = "host",
+        )
+    },
+    outputs = {
+        "out": "%{name}.tgz",
+    },
+)
+
+def _bosh_uncompiled_package_impl(ctx):
+    inputs = [f for f in ctx.files.srcs]
+    outputs = [ctx.outputs.out]
+
+    args = ctx.actions.args()
+    args.add(["-output", ctx.outputs.out.path])
+    args.add("-uncompiled")
+    for pkg in ctx.files.srcs:
+        args.add("-file")
+        args.add(pkg.path)
+
+    ctx.actions.run(
+        inputs=inputs,
+        outputs=outputs,
+        arguments=[args],
+        mnemonic="BoshUncompiledPackage",
+        progress_message="Building %s BOSH package (uncompiled)" % ctx.label.name,
+        executable=ctx.executable._builder,
+    )
+
+bosh_uncompiled_package = rule(
+    _bosh_uncompiled_package_impl,
     attrs = {
         "srcs": attr.label_list(
             allow_files = True,
