@@ -1,10 +1,11 @@
 def _bosh_release_impl(ctx):
-    inputs = [f for f in ctx.files.packages] + [f for f in ctx.files.jobs]
+    inputs = [f for f in ctx.files.packages] + [f for f in ctx.files.jobs] + [ctx.info_file]
     outputs = [ctx.outputs.out]
 
     args = ctx.actions.args()
     args.add(["-output", ctx.outputs.out.path])
     args.add(["-name", ctx.label.name])
+    args.add(["-version", ctx.info_file.path])
     args.add(["-stemcellDistro", ctx.attr.stemcell_distro])
     args.add(["-stemcellVersion", ctx.attr.stemcell_version])
     for package in ctx.files.packages:
@@ -56,13 +57,14 @@ bosh_release = rule(
 )
 
 def _bosh_uncompiled_release_impl(ctx):
-    inputs = [f for f in ctx.files.packages] + [f for f in ctx.files.jobs]
+    inputs = [f for f in ctx.files.packages] + [f for f in ctx.files.jobs] + [ctx.info_file]
     outputs = [ctx.outputs.out]
 
     args = ctx.actions.args()
     args.add(["-output", ctx.outputs.out.path])
     args.add(["-name", ctx.label.name])
     args.add("-uncompiled")
+    args.add(["-version", ctx.info_file.path])
     for package in ctx.files.packages:
         args.add("-package")
         args.add(package.path)

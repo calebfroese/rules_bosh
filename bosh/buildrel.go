@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/json"
@@ -31,6 +32,7 @@ func run(args []string) error {
 	packages := multiFlag{}
 	flags := flag.NewFlagSet("buildrel", flag.ExitOnError)
 	name := flags.String("name", "", "name of the release")
+	versionFile := flags.String("version", "", "path to version file")
 	output := flags.String("output", "", "path to place the release")
 	stemcellDistro := flags.String("stemcellDistro", "", "distro of the stemcell")
 	stemcellVersion := flags.String("stemcellVersion", "", "version of the stemcell")
@@ -50,6 +52,11 @@ func run(args []string) error {
 		return errors.New("-stemcellVersion must be specified")
 	}
 
+	v, err := version(*versionFile)
+	if err != nil {
+		return err
+	}
+
 	out, err := os.Create(*output)
 	if err != nil {
 		return err
@@ -64,7 +71,7 @@ func run(args []string) error {
 
 	manifest := Manifest{
 		Name:               *name,
-		Version:            "0.0.0+dev.1",
+		Version:            v,
 		CommitHash:         "0000000",
 		UncommittedChanges: true,
 	}
@@ -187,4 +194,26 @@ func (m *multiFlag) String() string {
 		return ""
 	}
 	return fmt.Sprint(*m)
+}
+
+func version(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		toks := strings.SplitN(scanner.Text(), " ", 2)
+		if toks[0] == "STABLE_RELEASE_VERSION" {
+			return toks[1], nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	return "0.0.0+dev.1", nil
 }
