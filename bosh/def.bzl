@@ -1,11 +1,10 @@
 def _bosh_release_impl(ctx):
-    inputs = [f for f in ctx.files.packages] + [f for f in ctx.files.jobs] + [ctx.info_file]
+    inputs = [f for f in ctx.files.packages] + [f for f in ctx.files.jobs]
     outputs = [ctx.outputs.out]
 
     args = ctx.actions.args()
     args.add(["-output", ctx.outputs.out.path])
     args.add(["-name", ctx.label.name])
-    args.add(["-version", ctx.info_file.path])
     args.add(["-stemcellDistro", ctx.attr.stemcell_distro])
     args.add(["-stemcellVersion", ctx.attr.stemcell_version])
     for package in ctx.files.packages:
@@ -14,6 +13,9 @@ def _bosh_release_impl(ctx):
     for job in ctx.files.jobs:
         args.add("-job")
         args.add(job.path)
+
+    if ctx.attr.version != "":
+        args.add(["-version", ctx.attr.version])
 
     ctx.actions.run(
         inputs=inputs,
@@ -38,6 +40,7 @@ bosh_release = rule(
         "packages": attr.label_list(
             mandatory = True,
         ),
+        "version": attr.string(),
         "stemcell_distro": attr.string(
             mandatory = True,
         ),
@@ -57,20 +60,22 @@ bosh_release = rule(
 )
 
 def _bosh_uncompiled_release_impl(ctx):
-    inputs = [f for f in ctx.files.packages] + [f for f in ctx.files.jobs] + [ctx.info_file]
+    inputs = [f for f in ctx.files.packages] + [f for f in ctx.files.jobs]
     outputs = [ctx.outputs.out]
 
     args = ctx.actions.args()
     args.add(["-output", ctx.outputs.out.path])
     args.add(["-name", ctx.label.name])
     args.add("-uncompiled")
-    args.add(["-version", ctx.info_file.path])
     for package in ctx.files.packages:
         args.add("-package")
         args.add(package.path)
     for job in ctx.files.jobs:
         args.add("-job")
         args.add(job.path)
+
+    if ctx.attr.version != "":
+        args.add(["-version", ctx.attr.version])
 
     ctx.actions.run(
         inputs=inputs,
@@ -89,6 +94,7 @@ def _bosh_uncompiled_release_impl(ctx):
 bosh_uncompiled_release = rule(
     _bosh_uncompiled_release_impl,
     attrs = {
+        "version": attr.string(),
         "jobs": attr.label_list(
             mandatory = True,
         ),
